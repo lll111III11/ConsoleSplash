@@ -1,8 +1,24 @@
 # ConsoleSplash
 
+> DLL-only build. A startup animation over the server console, defaulting to a terminal-style boot sequence. It covers the console window, never the whole screen.
+>
+> The default pack also carries a procedurally synthesised soundtrack: a 100 BPM four-bar loop that keeps layering up — piano arpeggios, string pad, bass, timpani and snare/hats (in the spirit of the Light Containment lockdown cue), plus transition whooshes. Generated with WebAudio; no audio files in the package. Sound is off by default.
+>
 > 只保留 DLL 的版本。给服务器控制台加一层开启动画，默认是一段终端风格的终端开机引导；覆盖的是控制台窗口，不是全屏。
 >
-> DLL-only build. A startup animation over the server console, defaulting to a terminal-style boot sequence. It covers the console window, never the whole screen.
+> 默认动画附带一套实时合成的音效：100 BPM、四小节一循环的渐进式编曲——钢琴分解和弦、弦垫、贝斯，配定音鼓与军鼓/踩镲（走向参考轻收容封锁那段的推进感），外加光幕横扫与收尾重击。全部由 WebAudio 现场生成，压缩包里没有任何音频文件。音效默认关闭。
+
+## Sound / 音效
+
+Sound is **off by default**. Set `window.CONSOLESPLASH_SOUND = true` in `animations/html-example/index.html` to enable the procedural soundtrack; it ends on a resolved Dm chord and fades out smoothly before the window closes.
+
+```html
+<script>window.CONSOLESPLASH_SOUND = false;</script>
+```
+
+The arrangement is a 100 BPM four-bar loop (Dm – Bb – F – A) that adds a layer every bar: piano arpeggio, pad, bass, timpani, snare and hats. No audio files are needed.
+
+音效**默认关闭**，不会在别人的服务器上突然响起来。要开启，把 `animations/html-example/index.html` 里的 `window.CONSOLESPLASH_SOUND` 改成 `true`。开启后是 100 BPM、四小节一循环的渐进编曲（Dm – Bb – F – A），随小节叠加声部；结尾用 Dm 和弦收束，并在 6.55–6.92 秒平滑淡出。
 
 许可证 / License: MIT.
 
