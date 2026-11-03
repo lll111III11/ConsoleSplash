@@ -1,0 +1,13 @@
+# build output
+bin/
+obj/
+dist/
+
+# local preview / dev captures
+shot-*.png
+*.log
+
+# editor
+.vs/
+.idea/
+*.user
