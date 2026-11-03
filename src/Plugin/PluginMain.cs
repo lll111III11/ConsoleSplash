@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  ConsoleSplash —— 插件版入口 / plugin-only entry point
 //
 //  只保留 DLL。默认动画是 animations/html-example/index.html，直接在控制台
@@ -444,7 +444,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 0, 0); }
+            get { return new Version(1, 1, 0); }
         }
 
         public override Version RequiredExiledVersion
@@ -509,7 +509,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 0, 0); }
+            get { return new Version(1, 1, 0); }
         }
 
         public override Version RequiredApiVersion

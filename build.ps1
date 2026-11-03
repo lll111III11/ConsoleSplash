@@ -2,7 +2,9 @@
 # Builds DLL only:
 #   0ConsoleSplash.dll / 0ConsoleSplash.Exiled.dll   (plugin, no WebView2)
 #   ConsoleSplash/ConsoleSplash.Render.dll           (out-of-process HTML renderer)
-param([switch]$Exiled)
+param([switch]$Exiled, [switch]$Package)
+
+$version = '1.1.0'
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -115,6 +117,30 @@ function Build-Render {
     Write-Host ("BUILD OK -> {0} ({1} bytes)" -f $out, (Get-Item $out).Length)
 }
 
+function Build-Installer {
+    $out = Join-Path $dist 'ConsoleSplashSetup.exe'
+
+    $refs = @(
+        (Join-Path $framework 'mscorlib.dll'),
+        (Join-Path $framework 'System.dll'),
+        (Join-Path $framework 'System.Core.dll'),
+        (Join-Path $framework 'System.Drawing.dll'),
+        (Join-Path $framework 'System.Windows.Forms.dll'),
+        (Join-Path $framework 'System.IO.Compression.dll'),
+        (Join-Path $framework 'System.IO.Compression.FileSystem.dll')
+    )
+
+    $arguments = @($cscPath, '-noconfig', '-nostdlib+', '-target:winexe', '-platform:AnyCPU',
+        '-warn:4', '-nowarn:CS0169,CS0219,CS0414,CS0436', "-out:$out")
+    foreach ($reference in $refs) { $arguments += "-r:$reference" }
+    $arguments += (Join-Path $root 'src\Installer\Program.cs')
+    $arguments += (Join-Path $root 'src\Installer\SetupForm.cs')
+
+    & dotnet @arguments
+    if ($LASTEXITCODE -ne 0) { throw "installer compile failed (exit $LASTEXITCODE)" }
+    Write-Host ("BUILD OK -> {0} ({1} bytes)" -f $out, (Get-Item $out).Length)
+}
+
 if ($Exiled) {
     Build-Plugin $true
 } else {
@@ -122,6 +148,7 @@ if ($Exiled) {
     Build-Plugin $true
 }
 Build-Render
+Build-Installer
 
 $animations = Join-Path $root 'animations'
 if (Test-Path $animations) { Copy-Item $animations $dist -Recurse -Force }
@@ -139,4 +166,28 @@ foreach ($old in @('ConsoleSplash.exe', 'Microsoft.Web.WebView2.Core.dll',
     Remove-Item (Join-Path $dist $old) -Force -Recurse -ErrorAction SilentlyContinue
 }
 
-Write-Host "DONE (DLL only). Output in $dist"
+if ($Package) {
+    $stage = Join-Path $env:TEMP ("ConsoleSplash-package-" + $version)
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+    Copy-Item (Join-Path $dist 'ConsoleSplashSetup.exe') $stage
+    Copy-Item (Join-Path $dist '0ConsoleSplash.dll') $stage
+    Copy-Item (Join-Path $dist '0ConsoleSplash.Exiled.dll') $stage
+    foreach ($extra in @('README.md', 'LICENSE')) {
+        $candidate = Join-Path $dist $extra
+        if (Test-Path $candidate) { Copy-Item $candidate $stage }
+    }
+    Copy-Item (Join-Path $dist 'animations') $stage -Recurse -Force
+    Copy-Item (Join-Path $dist 'ConsoleSplash') (Join-Path $stage 'ConsoleSplashRenderer') -Recurse -Force
+    Get-ChildItem $stage -Recurse -Include '*.log' -ErrorAction SilentlyContinue | Remove-Item -Force
+
+    $zip = Join-Path $dist ("ConsoleSplash-{0}.zip" -f $version)
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host ("PACKAGE OK -> {0} ({1} bytes)" -f $zip, (Get-Item $zip).Length)
+}
+
+Write-Host "DONE. Output in $dist"

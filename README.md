@@ -12,19 +12,44 @@
 - `0ConsoleSplash.Exiled.dll` — EXILED 插件 / EXILED plugin
 - `animations/` — 示例动画，默认 `html-example` / sample animation packs
 - `ConsoleSplashRenderer/` — 外部渲染器与 WebView2 依赖 / out-of-process renderer + WebView2 files
+- `ConsoleSplashSetup.exe` — 安装器 / one-click installer
 - `README.md`、`LICENSE`
 
-没有 EXE，没有独立启动器，没有后台监听。动画只在插件加载时播放。
+没有后台监听，没有常驻进程。动画只在插件加载时播放。
 
 ## 架构 / Architecture
 
-插件进程（Unity/Mono）只做四件事：找窗口、记住尺寸、把窗口移到屏幕正中心并隐藏、拉起外部渲染器。
+插件进程（Unity/Mono）只做三件事：找到控制台窗口、记下它的矩形、拉起外部渲染器。窗口不移动、不隐藏，动画窗口直接盖在它上面。
 
-WebView2 不进入服务器进程。插件用 `powershell.exe` 加载 `ConsoleSplash.Render.dll`，在独立进程里用 WinForms + WebView2 播放 HTML，播完退出；插件再把控制台窗口恢复。
+WebView2 不进入服务器进程。插件用 `powershell.exe` 加载 `ConsoleSplash.Render.dll`，在独立进程里用 WinForms + WebView2 播放 HTML，播完退出；覆盖层消失的同一刻，原位置露出真实控制台。
 
 The plugin never hosts WebView2. It launches `powershell.exe`, which loads `ConsoleSplash.Render.dll` and renders the HTML in its own process; the server process is untouched.
 
-## 安装 / Install
+## 一键安装 / One-click install
+
+双击压缩包里的 `ConsoleSplashSetup.exe`，它会先检查系统：
+
+| 检查项 | 说明 |
+|---|---|
+| Windows 10 或更高 | 低于此版本不写入任何文件 |
+| .NET Framework 4.8 | 安装器与渲染器都依赖它 |
+| WebView2 运行时 | 可选；缺失时自动退回预渲染帧 |
+| LabAPI / EXILED 目录 | 至少存在一个才能安装 |
+| 系统解压工具 `tar.exe` | 缺失时依次改用 `Expand-Archive`、`ZipFile` |
+
+不支持时窗口会按当前语言列出缺失项，不修改任何文件。支持时点“安装”，它会调用系统自带解压释放压缩包，然后把 DLL、`animations/`、`ConsoleSplashRenderer/` 放到对应框架目录，LabAPI 与 EXILED 同时存在就两边都装。
+
+命令行：
+
+```powershell
+ConsoleSplashSetup.exe --check                 # 只体检，退出码 0=支持 1=不支持
+ConsoleSplashSetup.exe --install --silent      # 静默安装
+ConsoleSplashSetup.exe --check --lang=ru       # 强制俄语
+```
+
+支持 `en`、`zh-CN`、`zh-TW`、`ru`、`uk`、`ko`、`de`、`fr`、`es`、`it`、`pt-BR`、`pl`、`tr`、`vi`，其余语言回退英文。
+
+## 手动安装 / Manual install
 
 1. 插件 DLL 放进插件目录：
    - LabAPI：`LabAPI/plugins/global/`
