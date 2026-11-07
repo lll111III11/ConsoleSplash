@@ -354,6 +354,9 @@ namespace ConsoleSplash.Render
             try
             {
                 SetWindowPos(Handle, new IntPtr(-1), x, y, width, height, 0x0010);
+
+                // 显式同步 WebView 尺寸，避免窗口变了而浏览器视口没跟上。
+                if (_web != null) _web.Bounds = new Rectangle(0, 0, width, height);
             }
             catch
             {

@@ -510,7 +510,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 3, 1); }
+            get { return new Version(1, 3, 2); }
         }
 
         public override Version RequiredExiledVersion
@@ -575,7 +575,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 3, 1); }
+            get { return new Version(1, 3, 2); }
         }
 
         public override Version RequiredApiVersion

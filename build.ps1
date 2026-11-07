@@ -4,7 +4,7 @@
 #   ConsoleSplash/ConsoleSplash.Render.dll           (out-of-process HTML renderer)
 param([switch]$Exiled, [switch]$Package)
 
-$version = '1.3.1'
+$version = '1.3.2'
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot

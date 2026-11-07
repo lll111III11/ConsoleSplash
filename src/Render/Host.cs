@@ -45,8 +45,32 @@ namespace ConsoleSplash.Render
         private static extern bool SetDllDirectory(string path);
 
         /// <summary>
-        /// 兼容旧版插件的 bool 参数（1.3.0 及以前）。
-        /// Compatibility overload for older plugins that passed a boolean backdrop flag.
+        /// 兼容 1.2.x 及更旧的插件：没有 smooth / backdrop 参数。
+        /// Compatibility for 1.2.x and older plugins without smooth/backdrop.
+        /// </summary>
+        public static int Run(string htmlPath, string baseDirectory,
+            int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
+            double seconds)
+        {
+            return Run(htmlPath, baseDirectory, x, y, width, height,
+                virtualScreenWidth, virtualScreenHeight, seconds, false, 0);
+        }
+
+        /// <summary>
+        /// 兼容首个 1.3.0 插件：只有 smooth，没有 backdrop。
+        /// Compatibility for the first 1.3.0 plugin that passed smooth only.
+        /// </summary>
+        public static int Run(string htmlPath, string baseDirectory,
+            int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
+            double seconds, bool smooth)
+        {
+            return Run(htmlPath, baseDirectory, x, y, width, height,
+                virtualScreenWidth, virtualScreenHeight, seconds, smooth, 0);
+        }
+
+        /// <summary>
+        /// 兼容传入 bool backdrop 的旧插件。
+        /// Compatibility for plugins that passed a boolean backdrop flag.
         /// </summary>
         public static int Run(string htmlPath, string baseDirectory,
             int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
