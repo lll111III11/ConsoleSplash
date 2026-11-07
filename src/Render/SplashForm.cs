@@ -23,6 +23,7 @@ namespace ConsoleSplash.Render
         private readonly Rectangle _consoleBounds;
         private Rectangle _fullBounds;
         private readonly Timer _timer;
+        private Timer _navFallback;
         private readonly Microsoft.Web.WebView2.WinForms.WebView2 _web;
         private Timer _anim;
         private DateTime _animStarted;
@@ -150,31 +151,23 @@ namespace ConsoleSplash.Render
                 // 等页面真正加载完再开始计时，否则收缩会比 CSS 收尾光幕早一截。
                 // Start the timeline only after the page is loaded so the shrink lines up
                 // with the CSS exit curtain.
-                core.NavigationCompleted += delegate
-                {
-                    if (_ready) return;
-                    _ready = true;
-                    _started = DateTime.UtcNow;
-                    _timer.Start();
-                    Host.Trace("navigation completed, timeline started");
-
-                    // 平滑开场：画面出来后再从控制台矩形铺满工作区。
-                    if (_smooth && _fullBounds != _consoleBounds)
-                    {
-                        Timer delay = new Timer();
-                        delay.Interval = 80;
-                        delay.Tick += delegate
-                        {
-                            delay.Stop();
-                            delay.Dispose();
-                            StartAnimation(_consoleBounds, _fullBounds, 520, null);
-                        };
-                        delay.Start();
-                    }
-                };
+                core.NavigationCompleted += delegate { StartTimeline(); };
 
                 core.Navigate(FileUrl(_htmlPath, baseDirectory));
                 Host.Trace("webview ready, navigating");
+
+                // 导航事件偶尔不回调时兜底，避免覆盖层一直挂着不关。
+                _navFallback = new Timer();
+                _navFallback.Interval = 2600;
+                _navFallback.Tick += delegate
+                {
+                    _navFallback.Stop();
+                    _navFallback.Dispose();
+                    _navFallback = null;
+                    Host.Trace("navigation fallback fired");
+                    StartTimeline();
+                };
+                _navFallback.Start();
 
                 // 强制显示并置顶，避免被其他窗口盖住。
                 ShowWindow(Handle, 5);
@@ -187,6 +180,42 @@ namespace ConsoleSplash.Render
                 Host.Trace("init failed: " + exception.Message);
                 Failed = true;
                 Close();
+            }
+        }
+
+        /// <summary>
+        /// 页面加载完成（或兜底计时到点）后启动时间线。
+        /// Start the timeline once the page is loaded, or when the fallback timer fires.
+        /// </summary>
+        private void StartTimeline()
+        {
+            if (_ready) return;
+            _ready = true;
+            _started = DateTime.UtcNow;
+            _timer.Start();
+
+            if (_navFallback != null)
+            {
+                _navFallback.Stop();
+                _navFallback.Dispose();
+                _navFallback = null;
+            }
+
+            Host.Trace("timeline started");
+
+            // 平滑开场：画面出来后再从控制台矩形铺满工作区。
+            if (_smooth && _fullBounds != _consoleBounds)
+            {
+                Timer delay = new Timer();
+                delay.Interval = 80;
+                delay.Tick += delegate
+                {
+                    delay.Stop();
+                    delay.Dispose();
+                    if (_exiting || _closing) return;
+                    StartAnimation(_consoleBounds, _fullBounds, 520, null);
+                };
+                delay.Start();
             }
         }
 
@@ -379,6 +408,19 @@ namespace ConsoleSplash.Render
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
+
+            if (_navFallback != null)
+            {
+                try
+                {
+                    _navFallback.Stop();
+                    _navFallback.Dispose();
+                }
+                catch
+                {
+                }
+                _navFallback = null;
+            }
 
             if (!string.IsNullOrEmpty(_backdropPath))
             {

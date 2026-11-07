@@ -322,23 +322,24 @@ namespace ConsoleSplash.Plugin
             string path = null;
             string requestedId = string.IsNullOrWhiteSpace(config.UIID) ? null : config.UIID.Trim();
 
-            // 配置里写了 UIID 就直接按 ID 找包，忽略文件夹名。
+            // 先按 UIID 找；找不到再退回 Animation 文件夹名。
             if (requestedId != null)
             {
                 path = FindByUiid(roots, requestedId, info);
-            }
-            else
-            {
-                for (int i = 0; i < roots.Length && path == null; i++)
-                {
-                    if (string.IsNullOrEmpty(roots[i])) continue;
-                    string candidate = Path.Combine(roots[i], value);
-                    if (Directory.Exists(candidate) || File.Exists(candidate))
-                        path = candidate;
-                }
+                if (path == null)
+                    warn("ConsoleSplash: UIID '" + requestedId
+                        + "' not found; falling back to Animation '" + value + "'.");
             }
 
-            if (requestedId == null && path == null && !Path.IsPathRooted(value))
+            for (int i = 0; i < roots.Length && path == null; i++)
+            {
+                if (string.IsNullOrEmpty(roots[i])) continue;
+                string candidate = Path.Combine(roots[i], value);
+                if (Directory.Exists(candidate) || File.Exists(candidate))
+                    path = candidate;
+            }
+
+            if (path == null && !Path.IsPathRooted(value))
             {
                 if (!string.IsNullOrEmpty(configDirectory))
                 {
@@ -355,7 +356,7 @@ namespace ConsoleSplash.Plugin
                 if (path == null) path = FindByUiid(roots, value, info);
             }
 
-            if (requestedId == null && path == null && Path.IsPathRooted(value)) path = value;
+            if (path == null && Path.IsPathRooted(value)) path = value;
 
             if (path != null)
             {
@@ -363,11 +364,8 @@ namespace ConsoleSplash.Plugin
                 if (File.Exists(path)) return SplashManifest.Load(path);
             }
 
-            if (requestedId != null)
-                warn("ConsoleSplash: UIID '" + requestedId + "' not found in animations; using the built-in sweep.");
-            else
-                warn("ConsoleSplash: animation not found (" + value + "); put the animations folder next to the DLL "
-                    + "or under the plugin config directory. Using the built-in sweep.");
+            warn("ConsoleSplash: animation not found (" + value + "); put the animations folder next to the DLL "
+                + "or under the plugin config directory. Using the built-in sweep.");
             return SplashManifest.BuiltinDefaults();
         }
 
@@ -512,7 +510,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 3, 0); }
+            get { return new Version(1, 3, 1); }
         }
 
         public override Version RequiredExiledVersion
@@ -577,7 +575,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 3, 0); }
+            get { return new Version(1, 3, 1); }
         }
 
         public override Version RequiredApiVersion

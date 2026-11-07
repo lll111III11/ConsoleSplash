@@ -26,7 +26,7 @@ window.CSPLASH_THEME = {
   font: 'Consolas, "Cascadia Mono", "Courier New", monospace',
 
   serverName: "SCP: SECRET LABORATORY",
-  windowTitle: "CONSOLESPLASH // BOOT",
+  windowTitle: "CONSOLESPLASH // TILES",
 
   layout: {
     introPadding: "12vh",
