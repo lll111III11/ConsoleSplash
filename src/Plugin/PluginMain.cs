@@ -54,6 +54,12 @@ namespace ConsoleSplash.Plugin
         /// <summary>默认动画文件夹 / default animation folder.</summary>
         public string Animation { get; set; } = "html-example";
 
+        /// <summary>
+        /// 按动画包声明的 UIID 选择动画；留空则按 Animation 文件夹名。
+        /// Pick a pack by its declared UIID; empty = use the Animation folder name.
+        /// </summary>
+        public string UIID { get; set; } = "";
+
         /// <summary>动画时长（秒），0 = 使用素材自身长度；HTML 动画始终使用清单时长 / seconds, 0 = asset length; HTML uses its manifest timeline.</summary>
         public double Duration { get; set; } = 0.0;
 
@@ -224,10 +230,11 @@ namespace ConsoleSplash.Plugin
             {
                 state.Info("ConsoleSplash: launching out-of-process renderer...");
                 Trace("play html manifestDuration=" + manifest.Duration);
+                bool smooth = state.SmoothTransition && manifest.Smooth;
                 bool ok = ExternalRenderer.Play(state.PluginDirectory, manifest.AssetPath,
                     manifest.BaseDirectory, state.Bounds,
                     manifest.Duration > 0 ? manifest.Duration : 3.5,
-                    state.SmoothTransition, state.Info);
+                    smooth, manifest.BackdropMode, state.Info);
 
                 if (ok) return;
 
@@ -313,16 +320,25 @@ namespace ConsoleSplash.Plugin
 
             string[] roots = new string[] { configAnimations, pluginAnimations };
             string path = null;
+            string requestedId = string.IsNullOrWhiteSpace(config.UIID) ? null : config.UIID.Trim();
 
-            for (int i = 0; i < roots.Length && path == null; i++)
+            // 配置里写了 UIID 就直接按 ID 找包，忽略文件夹名。
+            if (requestedId != null)
             {
-                if (string.IsNullOrEmpty(roots[i])) continue;
-                string candidate = Path.Combine(roots[i], value);
-                if (Directory.Exists(candidate) || File.Exists(candidate))
-                    path = candidate;
+                path = FindByUiid(roots, requestedId, info);
+            }
+            else
+            {
+                for (int i = 0; i < roots.Length && path == null; i++)
+                {
+                    if (string.IsNullOrEmpty(roots[i])) continue;
+                    string candidate = Path.Combine(roots[i], value);
+                    if (Directory.Exists(candidate) || File.Exists(candidate))
+                        path = candidate;
+                }
             }
 
-            if (path == null && !Path.IsPathRooted(value))
+            if (requestedId == null && path == null && !Path.IsPathRooted(value))
             {
                 if (!string.IsNullOrEmpty(configDirectory))
                 {
@@ -334,9 +350,12 @@ namespace ConsoleSplash.Plugin
                     string candidate = Path.Combine(pluginDirectory, value);
                     if (Directory.Exists(candidate) || File.Exists(candidate)) path = candidate;
                 }
+
+                // 文件夹名找不到时，再把 Animation 当成 UIID 找一遍。
+                if (path == null) path = FindByUiid(roots, value, info);
             }
 
-            if (path == null && Path.IsPathRooted(value)) path = value;
+            if (requestedId == null && path == null && Path.IsPathRooted(value)) path = value;
 
             if (path != null)
             {
@@ -344,9 +363,49 @@ namespace ConsoleSplash.Plugin
                 if (File.Exists(path)) return SplashManifest.Load(path);
             }
 
-            warn("ConsoleSplash: animation not found (" + value + "); put the animations folder next to the DLL "
-                + "or under the plugin config directory. Using the built-in sweep.");
+            if (requestedId != null)
+                warn("ConsoleSplash: UIID '" + requestedId + "' not found in animations; using the built-in sweep.");
+            else
+                warn("ConsoleSplash: animation not found (" + value + "); put the animations folder next to the DLL "
+                    + "or under the plugin config directory. Using the built-in sweep.");
             return SplashManifest.BuiltinDefaults();
+        }
+
+        /// <summary>
+        /// 在动画根目录里按 UIID 找包，大小写不敏感。
+        /// Scan the animation roots for a pack whose manifest declares this UIID.
+        /// </summary>
+        private static string FindByUiid(string[] roots, string id, Action<string> info)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+
+            for (int r = 0; r < roots.Length; r++)
+            {
+                if (string.IsNullOrEmpty(roots[r]) || !Directory.Exists(roots[r])) continue;
+
+                string[] directories;
+                try { directories = Directory.GetDirectories(roots[r]); }
+                catch { continue; }
+
+                for (int d = 0; d < directories.Length; d++)
+                {
+                    try
+                    {
+                        SplashManifest manifest = SplashManifest.FromDirectory(directories[d]);
+                        if (string.Equals(manifest.Uiid, id.Trim(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (info != null)
+                                info("ConsoleSplash: UIID '" + id + "' -> " + directories[d]);
+                            return directories[d];
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static string SafeDirectory(string path)

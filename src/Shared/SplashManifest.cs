@@ -48,6 +48,33 @@ namespace ConsoleSplash.Shared
         public double Volume = 0.8;
         public bool Hint = false;
 
+        /// <summary>动画包声明的唯一 ID / unique id declared by the pack.</summary>
+        public string Uiid = string.Empty;
+
+        /// <summary>
+        /// 覆盖层是否做“铺满屏幕再缩回”的平滑过渡；false = 只贴在控制台上。
+        /// false keeps the overlay exactly on the console for the whole animation.
+        /// </summary>
+        public bool Smooth = true;
+
+        /// <summary>
+        /// 播放前截屏当背景：空/false = 不截，screen = 整屏，console = 控制台矩形。
+        /// Backdrop capture mode: empty/false, "screen" or "console".
+        /// </summary>
+        public string Backdrop = string.Empty;
+
+        /// <summary>把 Backdrop 文本转成模式：0 无，1 整屏，2 控制台矩形。</summary>
+        public int BackdropMode
+        {
+            get
+            {
+                string value = (Backdrop ?? string.Empty).Trim().ToLowerInvariant();
+                if (value == "console" || value == "window") return 2;
+                if (value == "screen" || value == "true" || value == "on" || value == "yes" || value == "1") return 1;
+                return 0;
+            }
+        }
+
         /// <summary>HTML/视频无法渲染时的回退素材 / fallback asset when HTML/video cannot render.</summary>
         public string Fallback = string.Empty;
 
@@ -267,6 +294,21 @@ namespace ConsoleSplash.Shared
                 case "hint":
                 case "showhint":
                     Hint = ParseBool(value, Hint);
+                    break;
+                case "uiid":
+                case "ui-id":
+                case "id":
+                    Uiid = value;
+                    break;
+                case "backdrop":
+                case "showbackdrop":
+                case "capture":
+                    Backdrop = value;
+                    break;
+                case "smooth":
+                case "smoothopen":
+                case "expand":
+                    Smooth = ParseBool(value, Smooth);
                     break;
                 case "fallback":
                 case "fallbackanimation":

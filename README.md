@@ -114,22 +114,37 @@ SCP Secret Laboratory/
 
 ## 默认动画 / Default animation
 
+自带两套默认覆盖，按文件夹名或 UIID 任选：
+
+| UIID | 文件夹 | 效果 |
+|---|---|---|
+| `console-boot` | `html-example` | 网格地面 + 服务器名 + 光幕 + 终端，结尾白幕收进控制台 |
+| `tiles` | `html-tiles` | 斜滑块滑入控制台大小 → 斜边扫过合上缝隙 → 终端 → 从底部斜着逐块划走 |
+
 ```yaml
-Animation: html-example
+Animation: html-example   # 按文件夹名
+UIID: tiles               # 或按动画声明的 ID，优先于 Animation
 ```
 
-`animations/html-example/index.html` 是一段 7 秒的完整过渡：
+`html-example` 的时间线：
 
 1. 网格地面透视，镜头向前推进；
 2. 带阴影的 `SCP: SECRET LABORATORY` 和“即将打开”；
 3. 光幕划过，进入终端开机动画；
 4. 结尾白色光幕铺满，覆盖层关闭，露出真实控制台。
 
-`animations/html-example/fallback/` 是旧版预渲染帧（28 帧，8 FPS），仅在外部渲染器不可用时使用。
+`html-tiles` 的时间线（只覆盖控制台，不铺满屏幕）：
+
+1. 斜滑块从两侧一块块滑进控制台矩形，块与块之间留缝；
+2. 斜边光带扫过，缝隙按顺序合上，拼成完整画面；
+3. 服务器名与“即将打开”，随后进入终端过场；
+4. 结束后滑块一块接一块从底部斜着划走，露出控制台。
+
+`html-example/fallback/` 是旧版预渲染帧（28 帧，8 FPS），仅在外部渲染器不可用时使用。
 
 ## 定制 / Customize
 
-默认动画的样式、文案、尺寸都收在 **`animations/html-example/theme.js`** 里，改完保存即可，不用重新编译：
+每套动画包的样式、文案、尺寸都收在自己的 **`theme.js`** 里（如 `animations/html-tiles/theme.js`），改完保存即可，不用重新编译：
 
 | 字段 | 作用 |
 |---|---|
@@ -182,6 +197,7 @@ window.CSPLASH_THEME = {
 ```yaml
 Enabled: true          # 总开关 / master switch
 Animation: html-example
+UIID: ""               # 按动画包声明的 ID 选择，优先于 Animation / pick a pack by UIID
 Duration: 0            # 对 HTML 无效（用 splash.java 的完整时间线）；GIF/帧序列仍可覆盖
 SkipOnKey: true        # 任意键跳过（跳过时也会先走收尾光幕）
 ShowHint: true         # 显示跳过提示 / show the skip hint
@@ -204,16 +220,29 @@ DownloadUpdates: false # 发现新版本时下载 zip 到 updates 目录 / downl
 ```java
 public class Splash {
     String  name       = "Console Boot";
+    String  uiid       = "console-boot"; // 配置里填这个 ID 就能选中它
     String  animation  = "index.html";
-    String  fallback   = "fallback";   // HTML/视频失败时播放
+    String  fallback   = "fallback";     // HTML/视频失败时播放
     double  duration   = 7.0;
     double  fade       = 0.35;
     boolean skipOnKey  = true;
+    boolean smooth     = true;           // 是否铺满屏幕再缩回；false = 只贴控制台
+    String  backdrop   = "";             // "" / "screen" / "console"
     String  background = "#05080B";
     String  accent     = "#7FDBFF";
     boolean hint       = true;
 }
 ```
+
+**UIID 系统**：`uiid` 是动画包自己声明的身份，和文件夹名无关。配置里写：
+
+```yaml
+UIID: tiles
+```
+
+启动时会扫描 `animations/*/splash.java`，找 `uiid` 匹配的包（大小写不敏感），找到就播放；没找到才退回 `Animation`，再退回内置光扫。自己做动画时只要写一个 `uiid`，把文件夹丢进 `animations/`，配置里填 ID 即可。
+
+`backdrop` 用于“缝隙里露出控制台”的效果：渲染器会在显示覆盖层之前截屏，`screen` 截整屏，`console` 只截控制台矩形，截图会注入成页面的 `window.CSPLASH_BACKDROP`。`smooth = false` 时覆盖层全程只贴控制台，不铺满屏幕。
 
 `animation` 支持：
 

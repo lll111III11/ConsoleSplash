@@ -3,6 +3,7 @@
 // WebView2 不可用时回退到同款预渲染帧。
 public class Splash {
     String  name       = "Console Boot";
+    String  uiid       = "console-boot";
     String  animation  = "index.html";
     String  fallback   = "fallback";
     double  duration   = 7.0;

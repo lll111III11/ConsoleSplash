@@ -44,10 +44,22 @@ namespace ConsoleSplash.Render
             CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
         private static extern bool SetDllDirectory(string path);
 
+        /// <summary>
+        /// 兼容旧版插件的 bool 参数（1.3.0 及以前）。
+        /// Compatibility overload for older plugins that passed a boolean backdrop flag.
+        /// </summary>
+        public static int Run(string htmlPath, string baseDirectory,
+            int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
+            double seconds, bool smooth, bool backdrop)
+        {
+            return Run(htmlPath, baseDirectory, x, y, width, height,
+                virtualScreenWidth, virtualScreenHeight, seconds, smooth, backdrop ? 1 : 0);
+        }
+
         /// <summary>播放并返回退出码：0 成功，2 失败。</summary>
         public static int Run(string htmlPath, string baseDirectory,
             int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
-            double seconds, bool smooth)
+            double seconds, bool smooth, int backdropMode)
         {
             // 插件进程（Unity）拿到的坐标是 DPI 虚拟化后的，这里换算回物理像素。
             // 直接使用插件给的坐标：覆盖层要和服务器窗口完全重合，不再强制居中。
@@ -79,7 +91,7 @@ namespace ConsoleSplash.Render
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            SplashForm form = new SplashForm(htmlPath, baseDirectory, bounds, seconds, smooth);
+            SplashForm form = new SplashForm(htmlPath, baseDirectory, bounds, seconds, smooth, backdropMode);
 
             Application.Run(form);
             Trace("exit failed=" + form.Failed);

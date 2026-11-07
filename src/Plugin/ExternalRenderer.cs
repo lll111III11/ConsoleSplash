@@ -18,7 +18,7 @@ namespace ConsoleSplash.Plugin
     internal static class ExternalRenderer
     {
         internal static bool Play(string pluginDirectory, string htmlPath, string baseDirectory,
-            Rectangle bounds, double seconds, bool smooth, Action<string> log)
+            Rectangle bounds, double seconds, bool smooth, int backdropMode, Action<string> log)
         {
             try
             {
@@ -53,11 +53,12 @@ namespace ConsoleSplash.Plugin
                     bounds.Width + "," + bounds.Height + "," +
                     screen.Width + "," + screen.Height + "," +
                     seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
-                    (smooth ? "$true" : "$false") + ")";
+                    (smooth ? "$true" : "$false") + "," +
+                    backdropMode + ")";
 
                 string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
                 Trace("launching " + renderDll + " seconds=" + seconds
-                    + " smooth=" + smooth + " bounds=" + bounds);
+                    + " smooth=" + smooth + " backdrop=" + backdropMode + " bounds=" + bounds);
 
                 ProcessStartInfo info = new ProcessStartInfo("powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + encoded);

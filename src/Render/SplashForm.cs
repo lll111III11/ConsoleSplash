@@ -3,6 +3,7 @@
 // ============================================================================
 using System;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,6 +18,8 @@ namespace ConsoleSplash.Render
         private readonly string _baseDirectory;
         private readonly double _seconds;
         private readonly bool _smooth;
+        private string _backdropPath;
+        private string _backdropFolder;
         private readonly Rectangle _consoleBounds;
         private Rectangle _fullBounds;
         private readonly Timer _timer;
@@ -43,7 +46,7 @@ namespace ConsoleSplash.Render
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
         public SplashForm(string htmlPath, string baseDirectory, Rectangle bounds, double seconds,
-            bool smooth)
+            bool smooth, int backdropMode)
         {
             _htmlPath = htmlPath;
             _baseDirectory = baseDirectory;
@@ -51,6 +54,10 @@ namespace ConsoleSplash.Render
             _smooth = smooth;
             _consoleBounds = bounds;
             _fullBounds = bounds;
+
+            // 必须先截屏再显示窗口，否则截到的是我们自己的黑色覆盖层。
+            // Capture before the window is shown, otherwise we would capture ourselves.
+            if (backdropMode > 0) _backdropPath = CaptureBackdrop(bounds, backdropMode, out _backdropFolder);
 
             if (smooth)
             {
@@ -128,6 +135,17 @@ namespace ConsoleSplash.Render
 
                 core.SetVirtualHostNameToFolderMapping("splash.local", baseDirectory,
                     CoreWebView2HostResourceAccessKind.Allow);
+
+                // 需要“缝隙里露出控制台”的动画：把刚截好的全屏图作为 backdrop 注入。
+                if (!string.IsNullOrEmpty(_backdropPath) && File.Exists(_backdropPath))
+                {
+                    core.SetVirtualHostNameToFolderMapping("splash-temp.local", _backdropFolder,
+                        CoreWebView2HostResourceAccessKind.Allow);
+                    string backdropUrl = "https://splash-temp.local/"
+                        + Uri.EscapeDataString(Path.GetFileName(_backdropPath));
+                    core.AddScriptToExecuteOnDocumentCreatedAsync(
+                        "window.CSPLASH_BACKDROP='" + backdropUrl + "';");
+                }
 
                 // 等页面真正加载完再开始计时，否则收缩会比 CSS 收尾光幕早一截。
                 // Start the timeline only after the page is loaded so the shrink lines up
@@ -317,6 +335,54 @@ namespace ConsoleSplash.Render
                 Action completed = _animCompleted;
                 StopAnimation();
                 if (completed != null) completed();
+            }
+        }
+
+        /// <summary>
+        /// 在显示覆盖层之前截下整块屏幕，给“方块缝隙”当背景。
+        /// Grab the screen before the overlay appears so tile gaps can show it.
+        /// </summary>
+        private static string CaptureBackdrop(Rectangle bounds, int mode, out string folder)
+        {
+            folder = null;
+            try
+            {
+                Screen screen = Screen.FromRectangle(bounds);
+                Rectangle area = mode == 2 ? bounds : screen.Bounds;
+                if (area.Width <= 0 || area.Height <= 0) return null;
+
+                string directory = Path.Combine(Path.GetTempPath(), "ConsoleSplash");
+                Directory.CreateDirectory(directory);
+
+                string path = Path.Combine(directory,
+                    "backdrop-" + Guid.NewGuid().ToString("N") + ".png");
+
+                using (Bitmap bitmap = new Bitmap(area.Width, area.Height, PixelFormat.Format32bppArgb))
+                {
+                    using (Graphics graphics = Graphics.FromImage(bitmap))
+                    {
+                        graphics.CopyFromScreen(area.Left, area.Top, 0, 0, area.Size,
+                            CopyPixelOperation.SourceCopy);
+                    }
+                    bitmap.Save(path, ImageFormat.Png);
+                }
+
+                folder = directory;
+                return path;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+
+            if (!string.IsNullOrEmpty(_backdropPath))
+            {
+                try { File.Delete(_backdropPath); } catch { }
             }
         }
 
