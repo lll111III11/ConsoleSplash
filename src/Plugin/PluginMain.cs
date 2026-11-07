@@ -76,6 +76,12 @@ namespace ConsoleSplash.Plugin
         /// <summary>光带颜色 / accent color.</summary>
         public string Accent { get; set; } = "#7FDBFF";
 
+        /// <summary>
+        /// 平滑开场：是否先铺满屏幕，再在结尾缩回控制台。
+        /// Smooth transition: expand over the screen, then shrink back onto the console.
+        /// </summary>
+        public bool SmoothTransition { get; set; } = true;
+
         /// <summary>旧版缩放参数，已停用。</summary>
         public double Scale { get; set; } = 0.0;
     }
@@ -106,6 +112,7 @@ namespace ConsoleSplash.Plugin
             SplashState state = new SplashState();
             state.Manifest = manifest;
             state.ShowHint = config.ShowHint;
+            state.SmoothTransition = config.SmoothTransition;
             state.PluginDirectory = FindPluginDirectory(configDirectory);
             if (string.IsNullOrEmpty(state.PluginDirectory))
                 state.PluginDirectory = SafeDirectory(Assembly.GetExecutingAssembly().Location);
@@ -219,7 +226,8 @@ namespace ConsoleSplash.Plugin
                 Trace("play html manifestDuration=" + manifest.Duration);
                 bool ok = ExternalRenderer.Play(state.PluginDirectory, manifest.AssetPath,
                     manifest.BaseDirectory, state.Bounds,
-                    manifest.Duration > 0 ? manifest.Duration : 3.5, state.Info);
+                    manifest.Duration > 0 ? manifest.Duration : 3.5,
+                    state.SmoothTransition, state.Info);
 
                 if (ok) return;
 
@@ -419,6 +427,7 @@ namespace ConsoleSplash.Plugin
             public Rectangle Bounds;
             public SplashManifest Manifest;
             public bool ShowHint;
+            public bool SmoothTransition;
             public string PluginDirectory;
             public int Timeout;
             public Action<string> Info;
@@ -444,7 +453,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 2, 0); }
+            get { return new Version(1, 3, 0); }
         }
 
         public override Version RequiredExiledVersion
@@ -509,7 +518,7 @@ namespace ConsoleSplash.Plugin
 
         public override Version Version
         {
-            get { return new Version(1, 2, 0); }
+            get { return new Version(1, 3, 0); }
         }
 
         public override Version RequiredApiVersion

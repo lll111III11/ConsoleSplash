@@ -47,7 +47,7 @@ namespace ConsoleSplash.Render
         /// <summary>播放并返回退出码：0 成功，2 失败。</summary>
         public static int Run(string htmlPath, string baseDirectory,
             int x, int y, int width, int height, int virtualScreenWidth, int virtualScreenHeight,
-            double seconds)
+            double seconds, bool smooth)
         {
             // 插件进程（Unity）拿到的坐标是 DPI 虚拟化后的，这里换算回物理像素。
             // 直接使用插件给的坐标：覆盖层要和服务器窗口完全重合，不再强制居中。
@@ -79,7 +79,7 @@ namespace ConsoleSplash.Render
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            SplashForm form = new SplashForm(htmlPath, baseDirectory, bounds, seconds);
+            SplashForm form = new SplashForm(htmlPath, baseDirectory, bounds, seconds, smooth);
 
             Application.Run(form);
             Trace("exit failed=" + form.Failed);

@@ -21,7 +21,7 @@
     height: 100%;
     background: var(--bg);
     overflow: hidden;
-    font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+    font-family: var(--font, Consolas, "Cascadia Mono", "Courier New", monospace);
     color: var(--text);
   }
 
@@ -92,7 +92,7 @@
   .intro {
     position: absolute;
     inset: 0;
-    padding-bottom: 12vh;
+    padding-bottom: var(--intro-pad, 12vh);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -104,7 +104,7 @@
   }
 
   .server {
-    font-size: clamp(28px, 6vh, 60px);
+    font-size: var(--server-size, clamp(28px, 6vh, 60px));
     font-weight: 700;
     letter-spacing: .14em;
     white-space: nowrap;
@@ -203,8 +203,8 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: min(88vw, 1180px);
-    height: min(84vh, 680px);
+    width: var(--terminal-width, min(88vw, 1180px));
+    height: var(--terminal-height, min(84vh, 680px));
     background: linear-gradient(180deg, rgba(7, 13, 18, .96), rgba(4, 8, 11, .96));
     border: 1px solid rgba(127, 219, 255, .22);
     box-shadow: 0 0 40px rgba(127, 219, 255, .08),
@@ -461,7 +461,7 @@
             <div class="line d9"><span class="t">[2.026]</span><span class="cursor"></span></div>
           </div>
           <div class="progress">
-            <div class="meta"><span data-i18n="progress">BOOT PROGRESS</span><span>CONSOLESPLASH v1.2</span></div>
+            <div class="meta"><span data-i18n="progress">BOOT PROGRESS</span><span>CONSOLESPLASH v1.3</span></div>
             <div class="bar"><span></span></div>
           </div>
           <div class="footer">
@@ -479,6 +479,7 @@
   </div>
 
   <script src="i18n.js"></script>
+  <script src="theme.js"></script>
   <!-- 音效默认关闭 / sound is off by default. 改成 true 开启 / set to true to enable. -->
   <script>window.CONSOLESPLASH_SOUND = false;</script>
   <script src="audio.js"></script>

@@ -16,11 +16,21 @@ namespace ConsoleSplash.Render
         private readonly string _htmlPath;
         private readonly string _baseDirectory;
         private readonly double _seconds;
+        private readonly bool _smooth;
+        private readonly Rectangle _consoleBounds;
+        private Rectangle _fullBounds;
         private readonly Timer _timer;
         private readonly Microsoft.Web.WebView2.WinForms.WebView2 _web;
+        private Timer _anim;
+        private DateTime _animStarted;
+        private Rectangle _animFrom;
+        private Rectangle _animTo;
+        private int _animDuration;
+        private Action _animCompleted;
         private DateTime _started;
         private bool _ready;
         private bool _exiting;
+        private bool _closing;
 
         public bool Failed { get; private set; }
 
@@ -32,11 +42,27 @@ namespace ConsoleSplash.Render
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        public SplashForm(string htmlPath, string baseDirectory, Rectangle bounds, double seconds)
+        public SplashForm(string htmlPath, string baseDirectory, Rectangle bounds, double seconds,
+            bool smooth)
         {
             _htmlPath = htmlPath;
             _baseDirectory = baseDirectory;
             _seconds = seconds > 0 ? seconds : 3.5;
+            _smooth = smooth;
+            _consoleBounds = bounds;
+            _fullBounds = bounds;
+
+            if (smooth)
+            {
+                try
+                {
+                    Rectangle working = Screen.FromRectangle(bounds).WorkingArea;
+                    if (working.Width > 0 && working.Height > 0) _fullBounds = working;
+                }
+                catch
+                {
+                }
+            }
 
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
@@ -103,11 +129,33 @@ namespace ConsoleSplash.Render
                 core.SetVirtualHostNameToFolderMapping("splash.local", baseDirectory,
                     CoreWebView2HostResourceAccessKind.Allow);
 
-                core.Navigate(FileUrl(_htmlPath, baseDirectory));
+                // 等页面真正加载完再开始计时，否则收缩会比 CSS 收尾光幕早一截。
+                // Start the timeline only after the page is loaded so the shrink lines up
+                // with the CSS exit curtain.
+                core.NavigationCompleted += delegate
+                {
+                    if (_ready) return;
+                    _ready = true;
+                    _started = DateTime.UtcNow;
+                    _timer.Start();
+                    Host.Trace("navigation completed, timeline started");
 
-                _ready = true;
-                _started = DateTime.UtcNow;
-                _timer.Start();
+                    // 平滑开场：画面出来后再从控制台矩形铺满工作区。
+                    if (_smooth && _fullBounds != _consoleBounds)
+                    {
+                        Timer delay = new Timer();
+                        delay.Interval = 80;
+                        delay.Tick += delegate
+                        {
+                            delay.Stop();
+                            delay.Dispose();
+                            StartAnimation(_consoleBounds, _fullBounds, 520, null);
+                        };
+                        delay.Start();
+                    }
+                };
+
+                core.Navigate(FileUrl(_htmlPath, baseDirectory));
                 Host.Trace("webview ready, navigating");
 
                 // 强制显示并置顶，避免被其他窗口盖住。
@@ -126,8 +174,20 @@ namespace ConsoleSplash.Render
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (!_ready || _exiting) return;
-            if ((DateTime.UtcNow - _started).TotalSeconds >= _seconds)
+            if (!_ready || _exiting || _closing) return;
+
+            double elapsed = (DateTime.UtcNow - _started).TotalSeconds;
+            if (_smooth)
+            {
+                // 收尾光幕铺满后开始缩回控制台矩形，缩完再关窗口。
+                double shrinkAt = Math.Max(0.4, _seconds - 0.62);
+                if (elapsed >= shrinkAt)
+                {
+                    _exiting = true;
+                    ShrinkAndClose(560);
+                }
+            }
+            else if (elapsed >= _seconds)
             {
                 _timer.Stop();
                 Close();
@@ -152,6 +212,12 @@ namespace ConsoleSplash.Render
             {
             }
 
+            if (_smooth)
+            {
+                ShrinkAndClose(360);
+                return;
+            }
+
             Timer close = new Timer();
             close.Interval = 450;
             close.Tick += delegate
@@ -161,6 +227,97 @@ namespace ConsoleSplash.Render
                 Close();
             };
             close.Start();
+        }
+
+        /// <summary>
+        /// 从当前矩形缩回控制台矩形，动画结束后再关窗口。
+        /// Shrink back onto the console rect, then close once the animation finishes.
+        /// </summary>
+        private void ShrinkAndClose(int duration)
+        {
+            if (_closing) return;
+            _closing = true;
+
+            try { _timer.Stop(); } catch { }
+            StartAnimation(Bounds, _consoleBounds, duration, delegate
+            {
+                try { Close(); } catch { }
+            });
+        }
+
+        private void StartAnimation(Rectangle from, Rectangle to, int duration, Action completed)
+        {
+            StopAnimation();
+            if (duration < 1) duration = 1;
+
+            _animFrom = from;
+            _animTo = to;
+            _animDuration = duration;
+            _animCompleted = completed;
+            _animStarted = DateTime.UtcNow;
+
+            _anim = new Timer();
+            _anim.Interval = 15;
+            _anim.Tick += OnAnimationTick;
+            _anim.Start();
+        }
+
+        private void StopAnimation()
+        {
+            if (_anim == null) return;
+            try
+            {
+                _anim.Stop();
+                _anim.Dispose();
+            }
+            catch
+            {
+            }
+            _anim = null;
+            _animCompleted = null;
+        }
+
+        private void OnAnimationTick(object sender, EventArgs e)
+        {
+            double progress = (DateTime.UtcNow - _animStarted).TotalMilliseconds / _animDuration;
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+
+            // 展开用 easeOutCubic，收缩用 easeInOutCubic。
+            double eased;
+            if (_animTo.Width >= _animFrom.Width)
+            {
+                double inverse = 1 - progress;
+                eased = 1 - inverse * inverse * inverse;
+            }
+            else
+            {
+                eased = progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.Pow(-2 * progress + 2, 3) / 2;
+            }
+
+            int x = (int)Math.Round(_animFrom.X + (_animTo.X - _animFrom.X) * eased);
+            int y = (int)Math.Round(_animFrom.Y + (_animTo.Y - _animFrom.Y) * eased);
+            int width = (int)Math.Round(_animFrom.Width + (_animTo.Width - _animFrom.Width) * eased);
+            int height = (int)Math.Round(_animFrom.Height + (_animTo.Height - _animFrom.Height) * eased);
+            if (width < 1) width = 1;
+            if (height < 1) height = 1;
+
+            try
+            {
+                SetWindowPos(Handle, new IntPtr(-1), x, y, width, height, 0x0010);
+            }
+            catch
+            {
+            }
+
+            if (progress >= 1)
+            {
+                Action completed = _animCompleted;
+                StopAnimation();
+                if (completed != null) completed();
+            }
         }
 
         private static string FileUrl(string path, string baseDirectory)

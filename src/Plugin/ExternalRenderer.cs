@@ -18,7 +18,7 @@ namespace ConsoleSplash.Plugin
     internal static class ExternalRenderer
     {
         internal static bool Play(string pluginDirectory, string htmlPath, string baseDirectory,
-            Rectangle bounds, double seconds, Action<string> log)
+            Rectangle bounds, double seconds, bool smooth, Action<string> log)
         {
             try
             {
@@ -52,10 +52,12 @@ namespace ConsoleSplash.Plugin
                     Escape(baseDirectory) + "'," + bounds.Left + "," + bounds.Top + "," +
                     bounds.Width + "," + bounds.Height + "," +
                     screen.Width + "," + screen.Height + "," +
-                    seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + ")";
+                    seconds.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
+                    (smooth ? "$true" : "$false") + ")";
 
                 string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-                Trace("launching " + renderDll + " seconds=" + seconds + " bounds=" + bounds);
+                Trace("launching " + renderDll + " seconds=" + seconds
+                    + " smooth=" + smooth + " bounds=" + bounds);
 
                 ProcessStartInfo info = new ProcessStartInfo("powershell.exe",
                     "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand " + encoded);
@@ -114,7 +116,7 @@ namespace ConsoleSplash.Plugin
         /// </summary>
         private static string FindRenderDll(string pluginDirectory)
         {
-            string[] candidates = new string[2];
+            string[] candidates = new string[3];
 
             try
             {
@@ -133,6 +135,8 @@ namespace ConsoleSplash.Plugin
             {
                 candidates[1] = Path.Combine(Path.Combine(pluginDirectory, "ConsoleSplash"),
                     "ConsoleSplash.Render.dll");
+                // 也接受直接放在插件目录里的形态 / also accept a flat copy next to the plugin
+                candidates[2] = Path.Combine(pluginDirectory, "ConsoleSplash.Render.dll");
             }
             catch
             {

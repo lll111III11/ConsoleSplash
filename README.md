@@ -4,9 +4,13 @@
 >
 > The default pack also carries a procedurally synthesised soundtrack: a 100 BPM four-bar loop that keeps layering up — piano arpeggios, string pad, bass, timpani and snare/hats (in the spirit of the Light Containment lockdown cue), plus transition whooshes. Generated with WebAudio; no audio files in the package. Sound is off by default.
 >
+> Why are you even interested in something this pointless? (
+>
 > 只保留 DLL 的版本。给服务器控制台加一层开启动画，默认是一段终端风格的终端开机引导；覆盖的是控制台窗口，不是全屏。
 >
 > 默认动画附带一套实时合成的音效：100 BPM、四小节一循环的渐进式编曲——钢琴分解和弦、弦垫、贝斯，配定音鼓与军鼓/踩镲（走向参考轻收容封锁那段的推进感），外加光幕横扫与收尾重击。全部由 WebAudio 现场生成，压缩包里没有任何音频文件。音效默认关闭。
+>
+> 为什么你们会对这种无聊的东西感兴趣 (
 
 ## Sound / 音效
 
@@ -65,31 +69,47 @@ ConsoleSplashSetup.exe --check --lang=ru       # 强制俄语
 
 支持 `en`、`zh-CN`、`zh-TW`、`ru`、`uk`、`ko`、`de`、`fr`、`es`、`it`、`pt-BR`、`pl`、`tr`、`vi`，其余语言回退英文。
 
-## 手动安装 / Manual install
+## 最短接入 / Minimal setup
 
-1. 插件 DLL 放进插件目录：
-   - LabAPI：`LabAPI/plugins/global/`
-   - EXILED：`EXILED/Plugins/`
-2. 把 `ConsoleSplashRenderer/` 放到 **plugins 目录的上一级**，避免被 LabAPI/EXILED 当作插件扫描：
-   - LabAPI：`LabAPI/ConsoleSplashRenderer/`
-   - EXILED：`EXILED/ConsoleSplashRenderer/`
-3. 把 `animations/` 放在 DLL 旁边，或者放到插件配置目录下。
-4. 启动服务器。
+**只用安装器**：双击 `ConsoleSplashSetup.exe` → 体检 → 安装。它会把下面三样一次放好，LabAPI 和 EXILED 同时存在就两边都装。
 
-The renderer lives next to the `plugins` folder, not inside it, so LabAPI/EXILED never tries to load the WebView2 DLLs as plugins.
+想手动放，只需要记住这个目录树：
 
-插件按以下顺序找动画：
+```
+SCP Secret Laboratory/
+└─ LabAPI/
+   ├─ ConsoleSplashRenderer/        ← 整个文件夹放这里（不要放进 plugins）
+   │   ├─ ConsoleSplash.Render.dll
+   │   └─ WebView2Loader.dll ...
+   └─ plugins/
+      └─ global/
+         ├─ 0ConsoleSplash.dll
+         └─ animations/
+            └─ html-example/        ← 动画包
+               ├─ splash.java
+               ├─ index.html
+               ├─ i18n.js
+               ├─ theme.js          ← 只改这个就能换主题
+               └─ audio.js
+```
 
-1. `<配置目录>/animations/<Animation>`
-2. `<插件 DLL 所在目录>/animations/<Animation>`
-3. 内置光扫
+三步：
+
+1. `0ConsoleSplash.dll` → `plugins/global/`（EXILED 则是 `EXILED/Plugins/`）
+2. `ConsoleSplashRenderer/` → `LabAPI/ConsoleSplashRenderer/`（EXILED 则是 `EXILED/ConsoleSplashRenderer/`）
+3. `animations/` → `plugins/global/animations/`
+
+启动服务器即生效。渲染器也会在 `plugins/global/ConsoleSplash/` 和 DLL 同级目录里自动查找，放错位置不会直接失败。
+
+要换动画：把新文件夹丢进 `animations/`，在配置里把 `Animation:` 改成文件夹名即可；没有 `splash.java` 时会自动找 `index.html` → `frames/` → `*.gif` → `*.mp4`。
 
 ## 窗口行为 / Window behaviour
 
-- 找到控制台窗口（经典 conhost、Windows Terminal 的 `CASCADIA_HOSTING_WINDOW_CLASS`、或 LocalAdmin 主窗口）后，覆盖层**直接出现在控制台当前的位置**，大小和控制台完全一致。
-- 覆盖层先弹出来盖住控制台，**不移动、不隐藏控制台**，所以过渡开始时不会“抽一下”。
-- 动画播完（或任意键跳过）时，白色收尾光幕铺满窗口，覆盖层关闭，控制台在同一位置无缝出现。
-- 控制台全程留在覆盖层下面，不需要 `SW_HIDE`/恢复，也就没有最小化、闪烁或窗口跳动。
+- 找到控制台窗口（经典 conhost、Windows Terminal 的 `CASCADIA_HOSTING_WINDOW_CLASS`、或 LocalAdmin 主窗口）后，覆盖层先**精确贴住控制台**，所以第一帧不会跳。
+- **平滑开场**：覆盖层随后从控制台矩形向外铺开，盖住工作区，再在动画结尾随白色光幕收缩回控制台矩形，收完才关窗口。
+- 控制台全程留在覆盖层下面，不移动、不隐藏，全程没有最小化、闪烁或窗口跳动。
+- 动画播完（或任意键跳过）时同样走收缩过渡，控制台在原位置无缝出现。
+- 不想要这个效果就把配置里的 `SmoothTransition` 设为 `false`，恢复“直接贴住控制台播放”。
 - 找不到任何窗口时（纯 headless 启动），在屏幕正中心播放 80% 大小的 16:9 动画。
 
 ## 默认动画 / Default animation
@@ -106,6 +126,42 @@ Animation: html-example
 4. 结尾白色光幕铺满，覆盖层关闭，露出真实控制台。
 
 `animations/html-example/fallback/` 是旧版预渲染帧（28 帧，8 FPS），仅在外部渲染器不可用时使用。
+
+## 定制 / Customize
+
+默认动画的样式、文案、尺寸都收在 **`animations/html-example/theme.js`** 里，改完保存即可，不用重新编译：
+
+| 字段 | 作用 |
+|---|---|
+| `colors.background` / `accent` / `text` / `muted` | 背景、主色、正文、弱化文字 |
+| `font` | 整个动画的字体栈 |
+| `serverName` | 开屏服务器名；留空保留 `SCP: SECRET LABORATORY` |
+| `windowTitle` | 终端标题栏文字 |
+| `layout.introPadding` / `terminalWidth` / `terminalHeight` / `serverSize` | 间距与终端尺寸，填任意 CSS 值 |
+| `texts` | 按语言覆盖文案，`"*"` 表示所有语言 |
+| `introHtml` | 直接替换开屏区域 HTML，留空用默认 |
+| `customCss` | 追加任意 CSS，例如隐藏某个元素、换字体、加动画 |
+
+例子：把主色改成橙红、服务器名改成自己的、只改中文副标题：
+
+```js
+window.CSPLASH_THEME = {
+  colors: { background: "#0B0505", accent: "#FF6B3D" },
+  serverName: "MY SERVER",
+  texts: { "zh-CN": { subtitle: "即将进入收容" } },
+  customCss: ".rule { box-shadow: 0 0 24px #FF6B3D; }"
+};
+```
+
+想完全自由就三种做法，按需选：
+
+1. **改 `theme.js`** — 90% 的定制都在这里。
+2. **改 `index.html`** — 页面就是普通 HTML/CSS/JS，随便改布局；记得保持 7 秒时间线（或同步改 `splash.java` 的 `duration`）。
+3. **换整个包** — 在 `animations/` 下新建文件夹放自己的 `index.html`，配置里改 `Animation: 文件夹名`。
+
+音效开关也在 `index.html`：`window.CONSOLESPLASH_SOUND`，默认 `false`。
+
+声音/主题/渲染器都不需要重新编译 DLL；只有改 C# 才需要跑 `build.ps1`。
 
 ## 多语言 / Localization
 
@@ -130,6 +186,7 @@ Duration: 0            # 对 HTML 无效（用 splash.java 的完整时间线）
 SkipOnKey: true        # 任意键跳过（跳过时也会先走收尾光幕）
 ShowHint: true         # 显示跳过提示 / show the skip hint
 Accent: "#7FDBFF"      # 光带颜色 / accent color
+SmoothTransition: true # 平滑开场：铺满工作区再缩回控制台 / expand then shrink back
 
 CheckUpdates: true     # 启动时检查更新 / check for updates
 UpdateFeed: ""         # 更新源 JSON；留空则不检查 / JSON feed URL, empty = off
